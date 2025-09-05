@@ -24,6 +24,15 @@ class FishingGame {
         this.waitingStartTime = 0;
         this.reelingGame = null;
         this.renderInterval = null;
+        
+        // 初始化游戏进度状态
+        if (!this.gameData.gameState) {
+            this.gameData.gameState = {
+                totalCaught: 0,
+                unlockedFish: ["crucian_carp", "goldfish", "small_crucian", "white_striped"],
+                currentScene: 0
+            };
+        }
     }
 
     bindEvents() {
@@ -90,13 +99,27 @@ class FishingGame {
     }
 
     triggerRandomEvent() {
+        // 只包含已解锁的鱼类
+        const availableCommon = this.getAvailableFish(this.selectedBait.fishTable.common);
+        const availableRare = this.getAvailableFish(this.selectedBait.fishTable.rare);
+        const availableEpic = this.getAvailableFish(this.selectedBait.fishTable.epic);
+        const availableLegend = this.getAvailableFish(this.selectedBait.fishTable.legend);
+        
         const allEvents = [
-            ...this.selectedBait.fishTable.common.map(f => ({ type: 'fish', rarity: 'common', fish: f })),
-            ...this.selectedBait.fishTable.rare.map(f => ({ type: 'fish', rarity: 'rare', fish: f })),
-            ...this.selectedBait.fishTable.epic.map(f => ({ type: 'fish', rarity: 'epic', fish: f })),
-            ...this.selectedBait.fishTable.legend.map(f => ({ type: 'fish', rarity: 'legend', fish: f })),
+            ...availableCommon.map(f => ({ type: 'fish', rarity: 'common', fish: f })),
+            ...availableRare.map(f => ({ type: 'fish', rarity: 'rare', fish: f })),
+            ...availableEpic.map(f => ({ type: 'fish', rarity: 'epic', fish: f })),
+            ...availableLegend.map(f => ({ type: 'fish', rarity: 'legend', fish: f })),
             ...this.gameData.events.map(e => ({ type: 'event', event: e }))
         ];
+        
+        // 如果没有可用的鱼类，只会触发事件
+        if (allEvents.length === this.gameData.events.length) {
+            // 所有鱼类都被锁定，只能触发基础事件
+            const randomEvent = this.gameData.events[Math.floor(Math.random() * this.gameData.events.length)];
+            this.onSpecialEvent(randomEvent);
+            return;
+        }
         
         const randomEvent = allEvents[Math.floor(Math.random() * allEvents.length)];
         
@@ -235,6 +258,11 @@ class FishingGame {
         
         const fish = this.currentFish;
         this.bag.push(fish);
+        
+        // 更新游戏进度
+        this.gameData.gameState.totalCaught++;
+        this.updateUnlockedFish();
+        
         this.state = 'idle';
         this.currentFish = null;
         this.energy = 0;
@@ -243,7 +271,10 @@ class FishingGame {
         this.hideVisualElements();
         
         this.updateUI();
-        this.showMessage(`成功钓到 ${fish.profile.name}！`);
+        this.showMessage(`🎉 成功钓到 ${fish.profile.name}！`);
+        
+        // 检查是否解锁新鱼类或场景
+        this.checkUnlocks();
     }
 
     fishEscapes() {
@@ -341,7 +372,7 @@ class FishingGame {
 
     toggleBag() {
         const bagOverlay = document.getElementById('bag-overlay');
-        bagOverlay.style.display = bagOverlay.style.display === 'none' ? 'block' : 'none';
+        bagOverlay.style.display = bagOverlay.style.display === 'none' ? 'flex' : 'none';
         this.updateBagUI();
     }
 
@@ -482,7 +513,21 @@ class FishingGame {
     }
 
     showFishBiteMessage() {
-        this.showMessage(`🎣 有鱼上钩了！是 ${this.currentFish.profile.name}！`);
+        // 根据鱼的难度给出不同的提示，但不显示鱼的名字
+        const difficulty = this.currentFish.profile.shrink;
+        let message;
+        if (difficulty <= 0.12) {
+            message = '🎣 有鱼上钩了！感觉很轻松...';
+        } else if (difficulty <= 0.16) {
+            message = '🎣 有鱼上钩了！有一些阻力...';
+        } else if (difficulty <= 0.20) {
+            message = '🎣 有鱼上钩了！鱼线很紧！';
+        } else if (difficulty <= 0.25) {
+            message = '🎣 有大家伙上钩了！鱼竿都在颤抖！';
+        } else {
+            message = '🎣 传说中的生物上钩了！！！';
+        }
+        this.showMessage(message);
     }
 
     showMessage(text) {
@@ -545,10 +590,11 @@ class FishingGame {
             legend: { name: '传说', class: 'rarity-legend', probability: '3%' }
         };
 
-        // 生成每种鱼的卡片
+        // 生成每种鱼的卡片 - 包括已解锁和未解锁的
         for (const [fishType, fishData] of Object.entries(this.gameData.fishProfiles)) {
             const fishCard = document.createElement('div');
-            fishCard.className = 'fish-card';
+            const isUnlocked = this.gameData.gameState.unlockedFish.includes(fishType);
+            fishCard.className = `fish-card ${isUnlocked ? '' : 'locked'}`;
 
             // 确定这种鱼的稀有度
             let rarity = 'common';
@@ -561,25 +607,96 @@ class FishingGame {
                 }
             }
 
-            fishCard.innerHTML = `
-                <div class="fish-info">
-                    <div class="fish-emoji">${fishData.emoji}</div>
-                    <div class="fish-details">
-                        <div class="fish-name">${fishData.name}</div>
-                        <div class="fish-value">💰 价值: ${fishData.value} 豆</div>
-                        <div class="fish-stats">
-                            <span class="fish-rarity ${rarityInfo[rarity].class}">
-                                ${rarityInfo[rarity].name} (${rarityInfo[rarity].probability})
-                            </span>
-                        </div>
-                        <div style="font-size: 12px; color: #94a3b8; margin-top: 5px;">
-                            难度: 速度+${Math.round(fishData.speedIncrease * 100)}% | 收缩+${Math.round(fishData.shrink * 100)}%
+            if (isUnlocked) {
+                fishCard.innerHTML = `
+                    <div class="fish-info">
+                        <div class="fish-emoji">${fishData.emoji}</div>
+                        <div class="fish-details">
+                            <div class="fish-name">${fishData.name}</div>
+                            <div class="fish-value">💰 价值: ${fishData.value} 豆</div>
+                            <div class="fish-stats">
+                                <span class="fish-rarity ${rarityInfo[rarity].class}">
+                                    ${rarityInfo[rarity].name} (${rarityInfo[rarity].probability})
+                                </span>
+                            </div>
+                            <div style="font-size: 12px; color: #94a3b8; margin-top: 5px;">
+                                难度: 速度+${Math.round(fishData.speedIncrease * 100)}% | 收缩+${Math.round(fishData.shrink * 100)}%
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
+                `;
+            } else {
+                fishCard.innerHTML = `
+                    <div class="fish-info">
+                        <div class="fish-emoji">❓</div>
+                        <div class="fish-details">
+                            <div class="fish-name">未知鱼类</div>
+                            <div class="fish-value">需要钓到 ${fishData.unlockLevel} 条鱼解锁</div>
+                            <div class="fish-stats">
+                                <span class="fish-rarity rarity-locked">已锁定</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
 
             fishGrid.appendChild(fishCard);
         }
+    }
+
+    // 解锁系统相关功能
+    updateUnlockedFish() {
+        const totalCaught = this.gameData.gameState.totalCaught;
+        const allFish = Object.keys(this.gameData.fishProfiles);
+        
+        for (const fishId of allFish) {
+            const fish = this.gameData.fishProfiles[fishId];
+            if (fish.unlockLevel <= totalCaught && 
+                !this.gameData.gameState.unlockedFish.includes(fishId)) {
+                this.gameData.gameState.unlockedFish.push(fishId);
+            }
+        }
+    }
+
+    checkUnlocks() {
+        const totalCaught = this.gameData.gameState.totalCaught;
+        
+        // 检查新解锁的鱼类
+        const allFish = Object.keys(this.gameData.fishProfiles);
+        const newUnlocks = [];
+        
+        for (const fishId of allFish) {
+            const fish = this.gameData.fishProfiles[fishId];
+            if (fish.unlockLevel === totalCaught && 
+                this.gameData.gameState.unlockedFish.includes(fishId)) {
+                newUnlocks.push(fish.name);
+            }
+        }
+        
+        // 检查新解锁的场景
+        const scenes = this.gameData.progressSystem.scenes;
+        for (const scene of scenes) {
+            if (scene.unlockAt === totalCaught) {
+                this.showMessage(`🎊 解锁新场景：${scene.name}！`);
+                setTimeout(() => {
+                    this.showMessage(`${scene.description}`);
+                }, 2000);
+                break;
+            }
+        }
+        
+        // 显示新解锁的鱼类
+        if (newUnlocks.length > 0) {
+            setTimeout(() => {
+                this.showMessage(`🐟 解锁新鱼类：${newUnlocks.join('、')}！`);
+            }, newUnlocks.length > 0 ? 4000 : 0);
+        }
+    }
+
+    // 根据解锁状态过滤可钓到的鱼
+    getAvailableFish(fishList) {
+        return fishList.filter(fishId => 
+            this.gameData.gameState.unlockedFish.includes(fishId)
+        );
     }
 }

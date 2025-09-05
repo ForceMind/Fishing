@@ -39,6 +39,8 @@
             justify-content: space-between;
             align-items: center;
             backdrop-filter: blur(10px);
+            position: relative;
+            z-index: 10;
         }
 
         .beans-count {
@@ -124,7 +126,7 @@
         /* 钓竿和鱼线 */
         .fishing-rod {
             position: absolute;
-            top: -10px;
+            top: 50px;
             right: 20px;
             width: 4px;
             height: 80px;
@@ -689,6 +691,33 @@
         .rarity-rare { background: #3b82f6; color: white; }
         .rarity-epic { background: #8b5cf6; color: white; }
         .rarity-legend { background: #f59e0b; color: white; }
+        .rarity-locked { background: #374151; color: #9ca3af; }
+
+        /* 锁定状态的鱼卡片 */
+        .fish-card.locked {
+            background: rgba(20, 25, 35, 0.4);
+            border-color: rgba(75, 85, 99, 0.3);
+            opacity: 0.6;
+        }
+
+        .fish-card.locked:hover {
+            transform: none;
+            border-color: rgba(75, 85, 99, 0.3);
+            box-shadow: none;
+        }
+
+        .fish-card.locked .fish-emoji {
+            background: rgba(75, 85, 99, 0.2);
+            color: #9ca3af;
+        }
+
+        .fish-card.locked .fish-name {
+            color: #9ca3af;
+        }
+
+        .fish-card.locked .fish-value {
+            color: #6b7280;
+        }
 
         .close-guide {
             position: absolute;
@@ -857,13 +886,13 @@
             <div class="bag-status">背包：<span id="bag-count">0</span></div>
         </div>
 
+        <!-- 钓竿和鱼线 -->
+        <div class="fishing-rod" id="fishing-rod"></div>
+        <div class="fishing-line" id="fishing-line"></div>
+
         <!-- 主游戏区域 -->
         <div class="game-area">
             <div class="lake-background"></div>
-            
-            <!-- 钓竿和鱼线 -->
-            <div class="fishing-rod" id="fishing-rod"></div>
-            <div class="fishing-line" id="fishing-line"></div>
             
             <!-- 鱼饵选择 -->
             <div class="bait-selection" id="bait-selection">
@@ -927,7 +956,7 @@
         <div class="bag-overlay" id="bag-overlay" style="display: none;">
             <div class="bag-content">
                 <div class="bag-header">
-                    <div class="bag-title">我的收藏</div>
+                    <div class="bag-title">我的背包</div>
                     <button class="close-btn" id="close-bag">×</button>
                 </div>
                 
