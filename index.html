@@ -118,6 +118,155 @@
             animation: waves 12s linear infinite reverse;
         }
 
+        /* 游动的背景鱼 */
+        .swimming-fish {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .fish {
+            position: absolute;
+            font-size: 20px;
+            opacity: 0.3;
+            filter: blur(1px);
+            animation-timing-function: ease-in-out;
+            animation-iteration-count: infinite;
+        }
+
+        .fish-1 {
+            top: 15%;
+            left: -50px;
+            font-size: 36px;
+            opacity: 0.6;
+            z-index: 3;
+            transform: scaleX(-1);
+            animation: swim-close 10s linear infinite;
+            animation-delay: 0s;
+        }
+
+        .fish-2 {
+            top: 35%;
+            left: -40px;
+            font-size: 28px;
+            opacity: 0.4;
+            z-index: 2;
+            transform: scaleX(-1);
+            animation: swim-medium 16s linear infinite;
+            animation-delay: 3s;
+        }
+
+        .fish-3 {
+            top: 60%;
+            left: -30px;
+            font-size: 20px;
+            opacity: 0.25;
+            z-index: 1;
+            transform: scaleX(-1);
+            animation: swim-far 25s linear infinite;
+            animation-delay: 7s;
+        }
+
+        .fish-4 {
+            top: 45%;
+            left: -45px;
+            font-size: 32px;
+            opacity: 0.5;
+            z-index: 3;
+            transform: scaleX(-1);
+            animation: swim-close 12s linear infinite;
+            animation-delay: 12s;
+        }
+
+        .fish-5 {
+            top: 25%;
+            left: -35px;
+            font-size: 22px;
+            opacity: 0.3;
+            z-index: 1;
+            transform: scaleX(-1);
+            animation: swim-far 22s linear infinite;
+            animation-delay: 18s;
+        }
+
+        .fish-6 {
+            top: 70%;
+            left: -40px;
+            font-size: 30px;
+            opacity: 0.45;
+            z-index: 2;
+            transform: scaleX(-1);
+            animation: swim-medium 14s linear infinite;
+            animation-delay: 25s;
+        }
+
+        /* 近距离鱼 - 大且快 */
+        @keyframes swim-close {
+            0% {
+                left: -50px;
+                transform: scaleX(-1) translateY(0) rotate(1deg);
+            }
+            20% {
+                transform: scaleX(-1) translateY(-8px) rotate(-1deg);
+            }
+            40% {
+                transform: scaleX(-1) translateY(5px) rotate(0.5deg);
+            }
+            60% {
+                transform: scaleX(-1) translateY(-3px) rotate(-0.5deg);
+            }
+            80% {
+                transform: scaleX(-1) translateY(6px) rotate(1deg);
+            }
+            100% {
+                left: calc(100% + 50px);
+                transform: scaleX(-1) translateY(0) rotate(0deg);
+            }
+        }
+
+        /* 中距离鱼 - 中等大小和速度 */
+        @keyframes swim-medium {
+            0% {
+                left: -40px;
+                transform: scaleX(-1) translateY(0) rotate(0deg);
+            }
+            25% {
+                transform: scaleX(-1) translateY(-5px) rotate(-0.5deg);
+            }
+            50% {
+                transform: scaleX(-1) translateY(2px) rotate(0.3deg);
+            }
+            75% {
+                transform: scaleX(-1) translateY(-2px) rotate(-0.2deg);
+            }
+            100% {
+                left: calc(100% + 40px);
+                transform: scaleX(-1) translateY(0) rotate(0deg);
+            }
+        }
+
+        /* 远距离鱼 - 小且慢 */
+        @keyframes swim-far {
+            0% {
+                left: -30px;
+                transform: scaleX(-1) translateY(0);
+            }
+            33% {
+                transform: scaleX(-1) translateY(-2px);
+            }
+            66% {
+                transform: scaleX(-1) translateY(3px);
+            }
+            100% {
+                left: calc(100% + 30px);
+                transform: scaleX(-1) translateY(0);
+            }
+        }
+
         @keyframes waves {
             0% { transform: translateX(0); }
             100% { transform: translateX(33.333%); }
@@ -892,7 +1041,17 @@
 
         <!-- 主游戏区域 -->
         <div class="game-area">
-            <div class="lake-background"></div>
+            <div class="lake-background">
+                <!-- 游动的背景鱼 -->
+                <div class="swimming-fish">
+                    <div class="fish fish-1">🐟</div>
+                    <div class="fish fish-2">🐠</div>
+                    <div class="fish fish-3">🐟</div>
+                    <div class="fish fish-4">🐡</div>
+                    <div class="fish fish-5">🐠</div>
+                    <div class="fish fish-6">🐟</div>
+                </div>
+            </div>
             
             <!-- 鱼饵选择 -->
             <div class="bait-selection" id="bait-selection">
