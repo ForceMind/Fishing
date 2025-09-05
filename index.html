@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>钓鱼小游戏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .game-container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            max-width: 480px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* 顶部状态栏 */
+        .status-bar {
+            background: rgba(0,0,0,0.3);
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .beans-count {
+            font-size: 18px;
+            font-weight: bold;
+            color: #fbbf24;
+        }
+
+        .bag-status {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        /* 主游戏区域 */
+        .game-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            padding: 20px;
+        }
+
+        /* 湖面背景 */
+        .lake-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(ellipse at 30% 40%, rgba(100,150,255,0.3) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 60%, rgba(80,130,255,0.2) 0%, transparent 50%),
+                linear-gradient(180deg, 
+                    #4a90e2 0%, 
+                    #2e5fb8 30%,
+                    #1e4a8c 60%,
+                    #0f2a5a 100%);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .lake-background::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 300%;
+            height: 100%;
+            background: 
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 30px,
+                    rgba(255,255,255,0.05) 30px,
+                    rgba(255,255,255,0.05) 32px
+                );
+            animation: waves 8s linear infinite;
+        }
+
+        .lake-background::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 300%;
+            height: 100%;
+            background: 
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 45px,
+                    rgba(255,255,255,0.03) 45px,
+                    rgba(255,255,255,0.03) 47px
+                );
+            animation: waves 12s linear infinite reverse;
+        }
+
+        @keyframes waves {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(33.333%); }
+        }
+
+        /* 钓竿和鱼线 */
+        .fishing-rod {
+            position: absolute;
+            top: -10px;
+            right: 20px;
+            width: 4px;
+            height: 80px;
+            background: linear-gradient(to bottom, #8B4513, #A0522D);
+            border-radius: 2px;
+            transform-origin: bottom center;
+            transform: rotate(-15deg);
+            z-index: 5;
+        }
+
+        .fishing-rod.reeling {
+            animation: rod-pull 0.6s ease-in-out infinite;
+        }
+
+        @keyframes rod-pull {
+            0%, 100% { 
+                transform: rotate(-15deg) translateY(0); 
+            }
+            50% { 
+                transform: rotate(-12deg) translateY(-3px); 
+            }
+        }
+
+        .fishing-line {
+            position: absolute;
+            top: 70px;
+            right: 22px;
+            width: 1px;
+            background: rgba(255,255,255,0.6);
+            transform-origin: top center;
+            z-index: 4;
+            transition: all 0.3s ease;
+        }
+
+        .fishing-line.casting {
+            animation: lineCast 1s ease-out;
+        }
+
+        .fishing-line.reeling {
+            animation: line-tension 0.5s ease-in-out infinite;
+        }
+
+        @keyframes lineCast {
+            0% { height: 0px; }
+            50% { height: 150px; }
+            100% { height: var(--line-length, 120px); }
+        }
+
+        @keyframes line-tension {
+            0%, 100% { 
+                transform: rotate(0deg) scaleY(1); 
+            }
+            50% { 
+                transform: rotate(1deg) scaleY(0.98); 
+            }
+        }
+
+        /* 鱼饵选择区 */
+        .bait-selection {
+            background: rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        .bait-title {
+            font-size: 16px;
+            margin-bottom: 12px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .bait-options {
+            display: flex;
+            gap: 8px;
+            justify-content: space-between;
+        }
+
+        .bait-option {
+            flex: 1;
+            background: rgba(255,255,255,0.15);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            padding: 12px 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 12px;
+            pointer-events: auto;
+            position: relative;
+            z-index: 10;
+        }
+
+        .bait-option.selected {
+            border-color: #60a5fa;
+            background: rgba(96,165,250,0.2);
+        }
+
+        .bait-option:active {
+            transform: scale(0.95);
+        }
+
+        .bait-name {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .bait-cost {
+            color: #fbbf24;
+            font-size: 11px;
+        }
+
+        /* 钓鱼区域 */
+        .fishing-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 300px;
+        }
+
+        /* 浮标 */
+        .float {
+            width: 50px;
+            height: 70px;
+            background: linear-gradient(to bottom, 
+                #ff6b6b 0%, 
+                #ff5252 20%, 
+                #ffffff 20%, 
+                #ffffff 80%, 
+                #ff5252 80%, 
+                #ff6b6b 100%);
+            border-radius: 50% 50% 50% 50% / 30% 30% 70% 70%;
+            position: relative;
+            margin-bottom: 30px;
+            box-shadow: 
+                0 4px 20px rgba(239,68,68,0.4),
+                inset 0 2px 4px rgba(255,255,255,0.3),
+                inset 0 -2px 4px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+            animation: bobbing 2s ease-in-out infinite;
+        }
+
+        .float::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: 50%;
+            width: 2px;
+            height: 8px;
+            background: #333;
+            transform: translateX(-50%);
+            border-radius: 1px;
+        }
+
+        .float::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 8px solid #ff5252;
+            transform: translateX(-50%);
+        }
+
+        @keyframes bobbing {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-3px); }
+        }
+
+        .float.biting {
+            animation: shake 0.2s infinite, bobbing 2s ease-in-out infinite;
+        }
+
+        .float.reeling {
+            animation: reel-struggle 0.4s ease-in-out infinite;
+        }
+
+        @keyframes reel-struggle {
+            0%, 100% { 
+                transform: translateY(0) rotate(0deg); 
+            }
+            25% { 
+                transform: translateY(-8px) rotate(-5deg); 
+            }
+            75% { 
+                transform: translateY(8px) rotate(5deg); 
+            }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0) translateY(0); }
+            25% { transform: translateX(-3px) translateY(-2px); }
+            75% { transform: translateX(3px) translateY(2px); }
+        }
+
+        /* 水波纹效果 */
+        .water-ripples {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 100px;
+            pointer-events: none;
+        }
+
+        .ripple {
+            position: absolute;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            opacity: 0; /* 默认隐藏 */
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .water-ripples.active .ripple {
+            animation: ripple 2s linear infinite;
+            opacity: 1; /* 激活时显示 */
+        }
+
+        .ripple:nth-child(1) { animation-delay: 0s; }
+        .ripple:nth-child(2) { animation-delay: 0.5s; }
+        .ripple:nth-child(3) { animation-delay: 1s; }
+
+        @keyframes ripple {
+            0% {
+                width: 20px;
+                height: 20px;
+                opacity: 1;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+            }
+            100% {
+                width: 100px;
+                height: 100px;
+                opacity: 0;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+            }
+        }
+
+        /* 时机游戏条 */
+        .timing-bar {
+            width: 90%;
+            height: 60px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 30px;
+            position: relative;
+            margin: 20px 0;
+            display: none;
+            border: 3px solid rgba(255,255,255,0.3);
+        }
+
+        .timing-cursor {
+            width: 8px;
+            height: 54px;
+            background: #fbbf24;
+            border-radius: 4px;
+            position: absolute;
+            top: 3px;
+            transition: none;
+            box-shadow: 0 0 10px rgba(251,191,36,0.8);
+        }
+
+        .timing-green {
+            height: 54px;
+            background: #22c55e;
+            border-radius: 27px;
+            position: absolute;
+            top: 3px;
+            transition: all 0.1s;
+            box-shadow: 0 0 15px rgba(34,197,94,0.6);
+        }
+
+        /* 命中指示器 */
+        .hit-indicators {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hit-indicator {
+            position: absolute;
+            width: 4px;
+            height: 60px;
+            border-radius: 2px;
+            opacity: 0;
+            transform: translateX(-50%);
+            animation: hit-fade 2s ease-out forwards;
+        }
+
+        .hit-indicator.success {
+            background: linear-gradient(to bottom, #22c55e, #16a34a);
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.8);
+        }
+
+        .hit-indicator.miss {
+            background: linear-gradient(to bottom, #ef4444, #dc2626);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
+        }
+
+        @keyframes hit-fade {
+            0% {
+                opacity: 0;
+                transform: translateX(-50%) scale(0.5);
+            }
+            10% {
+                opacity: 1;
+                transform: translateX(-50%) scale(1.2);
+            }
+            30% {
+                opacity: 1;
+                transform: translateX(-50%) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateX(-50%) scale(0.8);
+            }
+        }
+
+        /* 控制按钮区 */
+        .controls {
+            display: flex;
+            gap: 12px;
+            padding: 0 4px;
+        }
+
+        .btn {
+            flex: 1;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            pointer-events: auto;
+            z-index: 10;
+            position: relative;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn:disabled {
+            background: #6b7280;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .btn-cast {
+            background: linear-gradient(135deg, #059669, #047857);
+        }
+
+        .btn-bag {
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            flex: 0.6;
+        }
+
+        .btn-reel {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+        }
+
+        #reeling-controls {
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 能量槽区域 - 显示在游戏界面内 */
+        .energy-display {
+            background: rgba(0,0,0,0.7);
+            border-radius: 16px;
+            padding: 16px;
+            margin: 16px 0;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.2);
+            display: none;
+        }
+
+        .energy-display.active {
+            display: block;
+        }
+
+        .energy-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #fbbf24;
+            text-align: center;
+        }
+
+        .energy-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 8px;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .energy-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ef4444, #fbbf24, #22c55e);
+            border-radius: 8px;
+            width: 0%;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px rgba(34,197,94,0.6);
+        }
+
+        .energy-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+            font-size: 12px;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+
+        .energy-tips {
+            font-size: 12px;
+            color: #a3a3a3;
+            text-align: center;
+        }
+
+        /* 图鉴系统 */
+        .fish-guide {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .guide-content {
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 25px;
+            position: relative;
+            border: 2px solid rgba(59, 130, 246, 0.5);
+        }
+
+        .guide-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .guide-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #3b82f6;
+            margin-bottom: 5px;
+        }
+
+        .guide-subtitle {
+            font-size: 14px;
+            color: #94a3b8;
+        }
+
+        .fish-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        .fish-card {
+            background: rgba(30, 41, 59, 0.6);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .fish-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(59, 130, 246, 0.6);
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.2);
+        }
+
+        .fish-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .fish-emoji {
+            font-size: 32px;
+            background: rgba(59, 130, 246, 0.2);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .fish-details {
+            flex: 1;
+        }
+
+        .fish-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 5px;
+        }
+
+        .fish-value {
+            font-size: 14px;
+            color: #fbbf24;
+            margin-bottom: 3px;
+        }
+
+        .fish-rarity {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+
+        .rarity-common { background: #6b7280; color: white; }
+        .rarity-rare { background: #3b82f6; color: white; }
+        .rarity-epic { background: #8b5cf6; color: white; }
+        .rarity-legend { background: #f59e0b; color: white; }
+
+        .close-guide {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid #ef4444;
+            color: #ef4444;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-guide:hover {
+            background: #ef4444;
+            color: white;
+        }
+
+        /* 背包覆盖层 */
+        .bag-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .bag-content {
+            background: linear-gradient(135deg, #1e3a8a, #1e40af);
+            border-radius: 20px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 20px;
+            position: relative;
+        }
+
+        .bag-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid rgba(255,255,255,0.2);
+        }
+
+        .bag-title {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .close-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 8px;
+            width: 32px;
+            height: 32px;
+            color: white;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .bag-items {
+            margin-bottom: 20px;
+            min-height: 100px;
+        }
+
+        .bag-item {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .sell-all-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #059669, #047857);
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* 选项卡样式 */
+        .tab-container {
+            display: flex;
+            gap: 0;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            padding: 12px 16px;
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .tab-btn:last-child {
+            border-right: none;
+        }
+
+        .tab-btn.active {
+            background: rgba(59, 130, 246, 0.3);
+            color: white;
+            font-weight: bold;
+        }
+
+        .tab-btn:hover:not(.active) {
+            background: rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.9);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* 响应式调整 */
+        @media (max-height: 600px) {
+            .fishing-area {
+                min-height: 200px;
+            }
+            .float {
+                width: 40px;
+                height: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <!-- 状态栏 -->
+        <div class="status-bar">
+            <div class="beans-count">游戏豆：<span id="beans-count">100</span></div>
+            <div class="bag-status">背包：<span id="bag-count">0</span></div>
+        </div>
+
+        <!-- 主游戏区域 -->
+        <div class="game-area">
+            <div class="lake-background"></div>
+            
+            <!-- 钓竿和鱼线 -->
+            <div class="fishing-rod" id="fishing-rod"></div>
+            <div class="fishing-line" id="fishing-line"></div>
+            
+            <!-- 鱼饵选择 -->
+            <div class="bait-selection" id="bait-selection">
+                <div class="bait-title">选择鱼饵</div>
+                <div class="bait-options">
+                    <div class="bait-option selected" id="bait-basic" data-type="basic">
+                        <div class="bait-name">基础鱼饵</div>
+                        <div class="bait-cost">费用：8豆</div>
+                    </div>
+                    <div class="bait-option" id="bait-pro" data-type="pro">
+                        <div class="bait-name">高级鱼饵</div>
+                        <div class="bait-cost">费用：20豆</div>
+                    </div>
+                    <div class="bait-option" id="bait-gold" data-type="gold">
+                        <div class="bait-name">黄金鱼饵</div>
+                        <div class="bait-cost">费用：50豆</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 钓鱼区域 -->
+            <div class="fishing-area">
+                <div class="float" id="fishing-float"></div>
+                
+                <!-- 水波纹效果 -->
+                <div class="water-ripples" id="water-ripples">
+                    <div class="ripple"></div>
+                    <div class="ripple"></div>
+                    <div class="ripple"></div>
+                </div>
+                
+                <!-- 能量槽显示 -->
+                <div class="energy-display" id="energy-display">
+                    <div class="energy-title">🎣 收线中...</div>
+                    <div class="energy-bar">
+                        <div class="energy-fill" id="energy-fill"></div>
+                        <div class="energy-text" id="energy-text">能量: 0/100</div>
+                    </div>
+                    <div class="energy-tips">瞄准绿色区域获得最大能量！</div>
+                </div>
+                
+                <!-- 时机游戏条 -->
+                <div class="timing-bar" id="timing-bar">
+                    <div class="timing-green" id="timing-green"></div>
+                    <div class="timing-cursor" id="timing-cursor"></div>
+                    <div class="hit-indicators" id="hit-indicators"></div>
+                </div>
+            </div>
+
+            <!-- 控制按钮 -->
+            <div class="controls">
+                <button class="btn btn-cast" id="cast-btn">抛竿 (8 豆子)</button>
+                <div id="reeling-controls">
+                    <button class="btn btn-reel" id="reel-btn">收线</button>
+                </div>
+                <button class="btn btn-bag" id="bag-btn">背包</button>
+            </div>
+        </div>
+
+        <!-- 背包覆盖层 -->
+        <div class="bag-overlay" id="bag-overlay" style="display: none;">
+            <div class="bag-content">
+                <div class="bag-header">
+                    <div class="bag-title">我的收藏</div>
+                    <button class="close-btn" id="close-bag">×</button>
+                </div>
+                
+                <!-- 选项卡 -->
+                <div class="tab-container">
+                    <button class="tab-btn active" id="tab-bag" data-tab="bag">📦 背包</button>
+                    <button class="tab-btn" id="tab-guide" data-tab="guide">🐟 图鉴</button>
+                </div>
+                
+                <!-- 背包内容 -->
+                <div class="tab-content active" id="content-bag">
+                    <div class="bag-items" id="bag-items">
+                        <p style="text-align: center; color: #666;">背包空空如也</p>
+                    </div>
+                    <button class="sell-all-btn" id="sell-all">全部卖出</button>
+                </div>
+                
+                <!-- 图鉴内容 -->
+                <div class="tab-content" id="content-guide">
+                    <div class="fish-grid" id="fish-grid">
+                        <!-- 鱼类卡片会在这里动态生成 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引用外部 JavaScript 文件 -->
+    <script src="game-data.js"></script>
+    <script src="reeling-minigame.js"></script>
+    <script src="fishing-game.js"></script>
+    <script src="game-init.js"></script>
+</body>
+</html>
